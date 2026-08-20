@@ -1,8 +1,9 @@
 
 ##imports
-
+from skimage.color import rgb2hsv
 from skimage.filters import threshold_otsu
-
+from scipy.ndimage import binary_dilation, binary_erosion
+import numpy as np
 
 def get_mask(slide, level='max', RGB_min=50):
     #read svs image at a certain level  and compute the otsu mask
@@ -13,6 +14,10 @@ def get_mask(slide, level='max', RGB_min=50):
                         axes=[1, 0, 2])
 
     tissue_mask = get_mask_image(img_RGB, RGB_min)
+
+    tissue_mask = binary_dilation(tissue_mask, iterations=3)
+    tissue_mask = binary_erosion(tissue_mask, iterations=3)
+
     return tissue_mask, level
 
 def get_mask_image(img_RGB, RGB_min=50):
@@ -31,5 +36,5 @@ def get_mask_image(img_RGB, RGB_min=50):
     return mask
 
 def mask():
-
+    pass
 

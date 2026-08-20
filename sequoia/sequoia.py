@@ -2,7 +2,7 @@
 ## imports
 
 import os
-import utils
+import sequoia.patch_utils as patch_utils
 
 class Sequoia():
 
@@ -24,14 +24,14 @@ class Sequoia():
             os.makedirs(self.mask_path)
         
 
-    def predict(self, file, patch_size=256):
+    def predict(self, file, patch_size=256, max_patches_per_slide = None):
         """
         The function predict recieves a .svs whole slide image file and returns the output prediction.
         """
 
         ### PATCH EXTRACTION
 
-        utils.patch_extraction(file, patch_size, self.patch_path)
+        patch_utils.patch_extraction(file, patch_size, self.patch_path, self.mask_path, max_patches_per_slide)
 
         ### 
 
@@ -40,3 +40,6 @@ class Sequoia():
         """
         The function recieves a .svs whole slide image file and returns the output spatial prediction.
         """
+
+    def batch_predict():
+        pass
