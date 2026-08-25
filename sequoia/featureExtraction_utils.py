@@ -10,12 +10,7 @@ from torchvision import transforms
 import h5py
 import timm
 from PIL import Image
-import pdb
 import random
-
-import math
-import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
 
 
 class FeatureExtaction():
@@ -29,30 +24,53 @@ class FeatureExtaction():
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         
-        transforms_val = transforms.Compose([
+        self.transforms_val = transforms.Compose([
                         transforms.Resize(224),
                         transforms.ToTensor(),
                         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),])
             
-        local_dir = model_path
-        self.model = timm.create_model("vit_large_patch16_224", img_size=224, patch_size=16, 
-                                    init_values=1e-5, num_classes=0, dynamic_img_size=True)
-        self.model.load_state_dict(torch.load(os.path.join(local_dir, 
-                                    "pytorch_model.bin"), map_location="cpu"), strict=True)
+        self.model = timm.create_model(
+                "hf-hub:MahmoodLab/uni",
+                pretrained=True,
+                init_values=1e-5,
+                dynamic_img_size=True,
+            )
+        
         self.model.to(self.device)
         self.model.eval()
 
-    def download_model(self):
+    def feature_extraction(self, slide_name, path, max_patch_number = None):
 
+        slide = slide_name
 
-    def resnet_feature_extraction(self, patch_path):
+        path_h5 = os.path.join(self.output_path)
 
-        self.model.eval()
+        if not os.path.exists(path_h5):
+            os.makedirs(path_h5)
+        print(path)
+        print(path_h5)
+        # try:
+        with h5py.File(path, 'r') as f_read:
+            keys = list(f_read.keys())
+            if max_patch_number is not None:
+                if len(keys) > max_patch_number: ##TODO: Why do we need the max patch number here??
+                    keys = random.sample(keys, max_patch_number) ## Answer: Sanity check
+            features_tiles = []
+            for key in tqdm(keys):
+                image = f_read[key][:]
+                image = Image.fromarray(image).convert("RGB")
+                image = self.transforms_val(image).to(self.device)
+                with torch.no_grad():
+                    features = self.model(image[None, :])
+                    features_tiles.append(features[0].detach().cpu().numpy())
+            features_tiles = np.asarray(features_tiles)
+            n_tiles = len(features_tiles)
 
-        resnet_output_path = os.path.join(self.output_path, "resnet")
+            f_write = h5py.File(os.path.join(path_h5, slide+'.h5'), "w")
+            dset = f_write.create_dataset("uni_features", data = features_tiles)
+            f_write.close()
 
-        if not os.path.exists(resnet_output_path):
-            os.makedirs(resnet_output_path)
-
-        if os.path.exists(os.path.join):
-            pass
+            with open(os.path.join(path_h5, "complete_tile.txt"), 'w') as f_sum:
+                f_sum.write(f"Total n patch = {n_tiles}")
+        # except Exception as e:
+        #     print(f"Feature extraction for {slide} failed: \n {e}")

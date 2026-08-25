@@ -39,7 +39,7 @@ def patch_extraction(svs_file, patch_size, patch_path, mask_path, max_patches_pe
 
     if os.path.exists(path_hdf5):
         print(f"Patch extraction for {svs_file} has already been done. Skipping.")
-        return
+        return path_hdf5
 
 
 
@@ -117,6 +117,8 @@ def patch_extraction(svs_file, patch_size, patch_path, mask_path, max_patches_pe
         print(f"Removed {path_hdf5}")
 
     ## except:
+
+    return path_hdf5
 
 
     ##TODO: original sequoia adds a parallel process function after this...

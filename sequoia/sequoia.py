@@ -7,7 +7,7 @@ from sequoia.featureExtraction_utils import FeatureExtaction
 
 class Sequoia():
 
-    def __init__(self, main_path, feature_model_path, path_to_model):
+    def __init__(self, main_path, path_to_model):
 
         self.main_path = main_path
         self.path_to_model = path_to_model
@@ -24,7 +24,7 @@ class Sequoia():
         if not os.path.isdir(self.mask_path):
             os.makedirs(self.mask_path)
 
-        self.feature_extractor = FeatureExtaction(self.feature_path, feature_model_path)
+        self.feature_extractor = FeatureExtaction(self.feature_path)
         
 
     def predict(self, file, patch_size=256, max_patches_per_slide = None):
@@ -34,11 +34,11 @@ class Sequoia():
 
         ### PATCH EXTRACTION
 
-        patch_utils.patch_extraction(file, patch_size, self.patch_path, self.mask_path, max_patches_per_slide)
+        file_patch_path = patch_utils.patch_extraction(file, patch_size, self.patch_path, self.mask_path, max_patches_per_slide)
 
         ### FEATURE EXTRACTION
 
-        self.feature_extractor.feature_extraction(file, max_patches_per_slide)
+        self.feature_extractor.feature_extraction(file, file_patch_path ,max_patches_per_slide)
 
         ### PREDICTION
 
