@@ -38,7 +38,11 @@ class Sequoia():
 
         ### FEATURE EXTRACTION
 
-        self.feature_extractor.feature_extraction(file, file_patch_path ,max_patches_per_slide)
+        feature_file = self.feature_extractor.feature_extraction(file, file_patch_path ,max_patches_per_slide)
+
+        ### K-MEANS
+
+        self.feature_extractor.k_means(feature_file)
 
         ### PREDICTION
 

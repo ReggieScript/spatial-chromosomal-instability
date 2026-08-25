@@ -11,6 +11,8 @@ import h5py
 import timm
 from PIL import Image
 import random
+from sklearn.cluster import KMeans
+
 
 
 class FeatureExtaction():
@@ -47,8 +49,13 @@ class FeatureExtaction():
 
         if not os.path.exists(path_h5):
             os.makedirs(path_h5)
-        print(path)
-        print(path_h5)
+
+        ## check if the feature file already exists
+
+        if os.path.exists(os.path.join(path_h5, slide+'.h5')):
+            print(f"Features already exist for {slide_name} Skipping...")
+            return os.path.join(path_h5, slide+'.h5')
+        
         # try:
         with h5py.File(path, 'r') as f_read:
             keys = list(f_read.keys())
@@ -74,3 +81,49 @@ class FeatureExtaction():
                 f_sum.write(f"Total n patch = {n_tiles}")
         # except Exception as e:
         #     print(f"Feature extraction for {slide} failed: \n {e}")
+
+
+    def k_means(self, feature_file, features_key = "uni_features", num_clusters = 100):
+
+
+        
+        try:
+            f = h5py.File(feature_file, "r+")
+        except Exception as e:
+            print(f"Error - Cannot open file {feature_file} \n {e} ")
+
+        try:
+            features = f[features_key]
+        except Exception as e:
+            print(f"No {features_key} for {feature_file} \n {e}")
+            f.close()
+
+        if features.shape[0] < num_clusters:
+            print(f"{feature_file}: fewer patches than clusters ({features.shape[0]} < {num_clusters})")
+            f.close()
+    
+
+        if "cluster_features_uni" in f.keys():
+            print(f"Warning: {feature_file}: cluster features already available, skipping")
+            
+
+        features_np = np.asarray(features)
+        kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(features)
+        clusters = kmeans.labels_
+
+        mean_features = []
+        for pos in tqdm(range(num_clusters)):
+            indexes = np.where(clusters == pos)
+            features_aux = features_np[indexes]
+            mean_features.append(np.mean(features_aux, axis=0))
+
+        mean_features = np.asarray(mean_features)
+
+        try:
+            f.create_dataset(f"cluster_features_uni", data=mean_features)
+            f.close()
+        except Exception as e:
+            print(f"{feature_file}: Error creating cluster_features_uni")
+            print(e)
+            f.close()
+
