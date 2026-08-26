@@ -12,7 +12,20 @@ import timm
 from PIL import Image
 import random
 from sklearn.cluster import KMeans
+from multiprocessing import Pool
 
+
+class PatchDataset(torch.utils.data.Dataset):
+    def __init__(self, images, transform):
+        self.images = images
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image = Image.fromarray(self.images[idx]).convert("RGB")
+        return self.transform(image)
 
 
 class FeatureExtaction():
@@ -41,51 +54,57 @@ class FeatureExtaction():
         self.model.to(self.device)
         self.model.eval()
 
-    def feature_extraction(self, slide_name, path, max_patch_number = None):
+    def _feature_extraction_batch(self, images, batch_size=32, num_workers=4):
+        dataset = PatchDataset(images, self.transforms_val)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False
+        )
 
+        all_features = []
+        with torch.no_grad():
+            for batch in tqdm(loader):
+                batch = batch.to(self.device)
+                features = self.model(batch)
+                all_features.append(features.detach().cpu().numpy())
+
+        all_features = np.concatenate(all_features, axis=0)
+        return all_features, len(all_features)
+
+    def feature_extraction(self, slide_name, patch_path, max_patch_number=None,
+                            batch_size=32, num_workers=4):
         slide = slide_name
+        path_h5 = self.output_path
+        os.makedirs(path_h5, exist_ok=True)
 
-        path_h5 = os.path.join(self.output_path)
+        slide_id = os.path.basename(slide_name).split(".svs")[0]
+        out_file = os.path.join(self.output_path, slide_id + '.h5')
+        print(out_file)
+        if os.path.exists(out_file):
+            print(f"Features already exist for {slide_name}. Skipping...")
+            return out_file
 
-        if not os.path.exists(path_h5):
-            os.makedirs(path_h5)
-
-        ## check if the feature file already exists
-
-        if os.path.exists(os.path.join(path_h5, slide+'.h5')):
-            print(f"Features already exist for {slide_name} Skipping...")
-            return os.path.join(path_h5, slide+'.h5')
-        
-        # try:
-        with h5py.File(path, 'r') as f_read:
+        with h5py.File(patch_path, 'r') as f_read:
             keys = list(f_read.keys())
-            if max_patch_number is not None:
-                if len(keys) > max_patch_number: ##TODO: Why do we need the max patch number here??
-                    keys = random.sample(keys, max_patch_number) ## Answer: Sanity check
-            features_tiles = []
-            for key in tqdm(keys):
-                image = f_read[key][:]
-                image = Image.fromarray(image).convert("RGB")
-                image = self.transforms_val(image).to(self.device)
-                with torch.no_grad():
-                    features = self.model(image[None, :])
-                    features_tiles.append(features[0].detach().cpu().numpy())
-            features_tiles = np.asarray(features_tiles)
-            n_tiles = len(features_tiles)
+            if max_patch_number is not None and len(keys) > max_patch_number:
+                keys = random.sample(keys, max_patch_number)
 
-            f_write = h5py.File(os.path.join(path_h5, slide+'.h5'), "w")
-            dset = f_write.create_dataset("uni_features", data = features_tiles)
-            f_write.close()
+            images = [f_read[key][:] for key in keys]
 
-            with open(os.path.join(path_h5, "complete_tile.txt"), 'w') as f_sum:
-                f_sum.write(f"Total n patch = {n_tiles}")
-        # except Exception as e:
-        #     print(f"Feature extraction for {slide} failed: \n {e}")
+        features, n_tiles = self._feature_extraction_batch(
+            images, batch_size=batch_size, num_workers=num_workers
+        )
+
+        with h5py.File(out_file, "w") as f_write:
+            f_write.create_dataset("uni_features", data=features)
+
+        with open(os.path.join(path_h5, "complete_tile.txt"), 'w') as f_sum:
+            f_sum.write(f"Total n patch = {n_tiles}")
+
+        return out_file
+
 
 
     def k_means(self, feature_file, features_key = "uni_features", num_clusters = 100):
-
-
         
         try:
             f = h5py.File(feature_file, "r+")
