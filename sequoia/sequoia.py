@@ -25,6 +25,14 @@ class Sequoia():
             os.makedirs(self.mask_path)
 
         self.feature_extractor = FeatureExtaction(self.feature_path)
+
+        ## print sanity check
+
+        print("Saving outputs at:")
+        print(f"PATCHES: {self.patch_path}")
+        print(f"FEATURES: {self.feature_path}")
+        print(f"MASK: {self.mask_path}" )
+
         
 
     def predict(self, file, patch_size=256, max_patches_per_slide = None):
@@ -38,11 +46,14 @@ class Sequoia():
 
         ### FEATURE EXTRACTION
 
-        feature_file = self.feature_extractor.feature_extraction(file, file_patch_path ,max_patches_per_slide)
+        feature_file = self.feature_extractor.feature_extraction(file, file_patch_path, max_patches_per_slide, 
+                                                                batch_size=16,
+                                                                num_workers=2
+                                                                )
 
         ### K-MEANS
 
-        self.feature_extractor.k_means(feature_file)
+        # self.feature_extractor.k_means(feature_file)
 
         ### PREDICTION
 
