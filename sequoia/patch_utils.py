@@ -27,11 +27,11 @@ def patch_extraction(svs_file, patch_size, patch_path, mask_path, max_patches_pe
     ##TODO: Not only check that it exists, check also that it is not empty
 
     if not os.path.exists(patch_path):
-        print("The patch_path directory does not exist. Please create it before running the patch extraction. Creating...")
+        print("The patch_path directory does not exist.  Creating...")
         os.makedirs(patch_path)
 
     if not os.path.exists(mask_path):
-        print("The mask_path directory does not exist. Please create it before running the patch extraction. Creating...")
+        print("The mask_path directory does not exist.  Creating...")
         os.makedirs(mask_path)
 
     slide_name = get_slide_name(svs_file)
